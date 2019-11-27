@@ -124,30 +124,24 @@ def _find_data(minfo, keys, stream_index=0):
     return data
 
 
-def _property_data(mproperty, key):
-    try:
-        return mproperty[key]
-    except KeyError:
-        pass
+def _exif_data(minfo, key):
+    for exif_key, exif_value in minfo.exif:
+        if exif_key == key:
+            return exif_value
 
 
-def _exif_data(minfo, keys):
-    return _property_data(minfo.exif, keys)
-
-
-def _stream_data(minfo, stream_index, keys):
+def _stream_data(minfo, stream_index, key):
     try:
         stream = minfo.streams[stream_index]
     except IndexError:
         data = None
     else:
-        data = _property_data(stream, keys)
+        data = stream.get(key)
     return data
 
 
 def _exif_parser(data):
-    exif_data = {}
-    key_count = {}
+    exif_data = []
     for line in str(data).split('\n'):
         index = line.find(':')
         key = line[:index].strip()
@@ -157,14 +151,8 @@ def _exif_parser(data):
                 value = typ(value)
             except ValueError:
                 pass
-        if key in key_count:
-            key_count[key]+=1
-        else:
-            key_count[key] = 0
-        if key_count[key] > 0:
-            key = '%s%d' % (key, key_count[key])
-        exif_data[key] = value
-    return exif_data
+        exif_data.append((key, value))
+    return tuple(exif_data)
 
 
 def _exiftool(path):
@@ -218,7 +206,7 @@ def _unittest():
     mov, wav = set_up()
 
     def test_attributes(minfo):
-        assert isinstance(minfo.exif, dict), "exif data is not a dict"
+        assert isinstance(minfo.exif, tuple), "exif data is not a tuple"
         assert isinstance(minfo.streams, list), "streams data is not a list"
         assert isinstance(minfo.format, dict), "format data is not a dict"
 
