@@ -175,61 +175,6 @@ def _subproc(command):
     return out
 
 
-def _unittest():
-
-    def set_up():
-
-        def generate_media(command, media):
-            _subproc(command)
-            if not os.path.exists(media):
-                raise IOError("Failed to generate media '%s'" % media)
-
-        wav = tempfile.mktemp(suffix='.wav')
-        sox = 'sox -V0 -r 48000 -n -b 16 -c 2 %s synth 10 sin 1000 vol -10dB' % wav
-        generate_media(sox, wav)
-        mov = tempfile.mktemp(suffix='.mov')
-        ffmpeg = 'ffmpeg -f lavfi -i testsrc=duration=10:size=1280x720:rate=30 '\
-                 ' %s -i %s -hide_banner -loglevel panic' % (mov, wav)
-        
-        try:
-            generate_media(ffmpeg, mov)
-        except IOError:
-            os.remove(wav)
-
-        return (MInfo(mov), MInfo(wav))
-
-    def _cleanup(files):
-        for each in files:
-            if os.path.exists(each):
-                os.remove(each)
-
-    mov, wav = set_up()
-
-    def test_attributes(minfo):
-        assert isinstance(minfo.exif, tuple), "exif data is not a tuple"
-        assert isinstance(minfo.streams, list), "streams data is not a list"
-        assert isinstance(minfo.format, dict), "format data is not a dict"
-
-    def test_movie_data(minfo):
-        assert minfo.resolution == (1280, 720), "resolution is %s" % str(minfo.resolution)
-        assert minfo.fps == 30, "fps is %s" % str(minfo.fps)
-        assert minfo.duration == 10.02, "duration is %s" % str(minfo.duration)
-
-    def test_audio_data(minfo):
-        assert minfo.resolution == None, "resolution is %s" % str(minfo.resolution)
-        assert minfo.fps == '0/0', "fps is %s" % str(minfo.fps)
-        assert minfo.duration == 10.0, "duration is %s" % str(minfo.duration)
-
-    try:
-        test_attributes(mov)
-        test_movie_data(mov)
-        test_audio_data(wav)
-        test_audio_data(wav)
-    except:
-        _cleanup((mov.path, wav.path))
-        raise
-
-
 def _print_data(files, properties, keys):
     for fi in files:
         minfo = MInfo(fi)
@@ -245,13 +190,10 @@ def _print_data(files, properties, keys):
 def _main():
     parser = argparse.ArgumentParser()
     parser.add_argument('files', nargs='*')
-    parser.add_argument('-u', '--unittest', action='store_true')
     parser.add_argument('-p', '--property')
-    parser.add_argument('-k', '--key')
+    parser.add_argument('-k', '--key') 
     args = parser.parse_args()
-    if args.unittest:
-        _unittest()
-    elif args.files:
+    if args.files:
         properties = [] if not args.property else args.property.split(',')
         keys = [] if not args.key else args.key.split(',')
         _print_data(args.files, properties, keys)
