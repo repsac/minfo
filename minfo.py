@@ -45,19 +45,23 @@ import tempfile
 from subprocess import PIPE, Popen
 
 
+FFPROBE = 'ffprobe.exe -v quiet -print_format json -show_format ' \
+          '-show_streams -show_programs -show_chapters "{}"'
+EXIFTOOL = 'exiftool "{}"'
+
+
 class MInfo(object):
 
     def __init__(self, path):
         self.path = path
         self.exif = None
-        self.streams = None
         self._setup()
     
     def _setup(self):
         self.exif = _exiftool(self.path)
         probe = _ffprobe(self.path)
-        self.streams = probe['streams']
-        self.format = probe['format']
+        for key in probe.keys():
+            setattr(self, key, probe[key])
 
     @property
     def resolution(self):
@@ -156,16 +160,15 @@ def _exif_parser(data):
 
 
 def _exiftool(path):
-    return _exec_tool('exiftool "%s"', path, _exif_parser)
+    return _exec_tool(EXIFTOOL, path, _exif_parser)
 
 
 def _ffprobe(path):
-    command = 'ffprobe.exe -v quiet -print_format json -show_format -show_streams "%s"'
-    return _exec_tool(command, path, json.loads)
+    return _exec_tool(FFPROBE, path, json.loads)
 
 
 def _exec_tool(command, path, func):
-    data = _subproc(command % path)
+    data = _subproc(command.format(path))
     return func(data)
 
 
